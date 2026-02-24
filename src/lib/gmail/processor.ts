@@ -63,8 +63,11 @@ export async function processNewEmails(): Promise<ProcessResult> {
         continue
       }
 
-      // Detect competitor
+      // Detect competitor — skip emails not from a known competitor domain
       const competitorId = await detectCompetitor(parsed.senderAddress)
+      if (!competitorId) {
+        continue
+      }
 
       // Store email
       await supabase.from("emails").insert({

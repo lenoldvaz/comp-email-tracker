@@ -1,12 +1,30 @@
 import type { gmail_v1 } from "googleapis"
 import { createServiceClient } from "@/lib/supabase/server"
 import { getGmailClient } from "./client"
+import { getCompetitorDomainList } from "@/lib/competitors/detector"
 
 const BATCH_SIZE = 50
+
+/**
+ * Build a Gmail search query that only matches emails from competitor domains.
+ * e.g. "(from:acme.com OR from:globex.com) newer_than:90d"
+ */
+async function buildCompetitorQuery(): Promise<string | null> {
+  const domains = await getCompetitorDomainList()
+  if (domains.length === 0) return null
+  const fromClause = domains.map((d) => `from:${d}`).join(" OR ")
+  return `(${fromClause}) newer_than:90d`
+}
 
 export async function pollNewMessages(monitoredEmail: string, refreshToken: string) {
   const gmail = await getGmailClient(refreshToken)
   const supabase = createServiceClient()
+
+  const competitorQuery = await buildCompetitorQuery()
+  if (!competitorQuery) {
+    console.log("No competitor domains configured — skipping Gmail sync")
+    return []
+  }
 
   // Get or create sync state
   let { data: syncState } = await supabase
@@ -46,6 +64,9 @@ export async function pollNewMessages(monitoredEmail: string, refreshToken: stri
         }
       }
 
+      // For incremental sync, we filter after fetching since the history API
+      // doesn't support query filters. We'll check sender domains when processing.
+
       // Update historyId
       if (history.data.historyId) {
         await supabase
@@ -61,14 +82,14 @@ export async function pollNewMessages(monitoredEmail: string, refreshToken: stri
       const error = err as { code?: number }
       if (error.code === 404) {
         // historyId expired, do full sync
-        messageIds = await fullSync(gmail)
+        messageIds = await fullSync(gmail, competitorQuery)
       } else {
         throw err
       }
     }
   } else {
-    // First sync: fetch all messages
-    messageIds = await fullSync(gmail)
+    // First sync: only fetch emails from competitor domains
+    messageIds = await fullSync(gmail, competitorQuery)
   }
 
   // Fetch full message details
@@ -103,13 +124,17 @@ export async function pollNewMessages(monitoredEmail: string, refreshToken: stri
   return messages
 }
 
-async function fullSync(gmail: gmail_v1.Gmail): Promise<string[]> {
+/**
+ * Full sync — uses Gmail's `q` parameter to only fetch messages from competitor domains.
+ */
+async function fullSync(gmail: gmail_v1.Gmail, query: string): Promise<string[]> {
   const messageIds: string[] = []
   let pageToken: string | undefined
 
   do {
     const res = await gmail.users.messages.list({
       userId: "me",
+      q: query,
       maxResults: 100,
       pageToken,
     })

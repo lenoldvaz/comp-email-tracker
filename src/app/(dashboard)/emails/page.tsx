@@ -13,13 +13,13 @@ function EmailsContent() {
   )
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="absolute inset-0 flex flex-col">
       <EmailFilters />
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex w-full flex-col border-r lg:w-2/5">
+      <div className="flex min-h-0 flex-1">
+        <div className="flex w-full min-h-0 flex-col border-r lg:w-2/5">
           <EmailList selectedId={selectedId} onSelect={setSelectedId} />
         </div>
-        <div className="hidden flex-1 lg:block">
+        <div className="hidden min-h-0 flex-1 lg:block">
           {selectedId ? (
             <EmailPreview emailId={selectedId} />
           ) : (

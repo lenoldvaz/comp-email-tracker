@@ -33,6 +33,11 @@ export function invalidateCompetitorCache() {
   cachedDomains = null
 }
 
+export async function getCompetitorDomainList(): Promise<string[]> {
+  const domains = await getCompetitorDomains()
+  return [...new Set(domains.map((d) => d.domain))]
+}
+
 export async function detectCompetitor(senderAddress: string): Promise<string | null> {
   const domains = await getCompetitorDomains()
   const senderDomain = senderAddress.split("@")[1]?.toLowerCase()

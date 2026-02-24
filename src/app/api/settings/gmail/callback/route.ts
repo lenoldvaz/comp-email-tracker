@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import { getOAuth2Client } from "@/lib/gmail/client"
 import { google } from "googleapis"
 
@@ -21,10 +21,9 @@ export async function GET(req: Request) {
     const profile = await gmail.users.getProfile({ userId: "me" })
     const email = profile.data.emailAddress!
 
-    // Store sync state
-    const supabase = await createClient()
+    // Store sync state using service client (bypasses RLS)
+    const supabase = createServiceClient()
 
-    // Upsert: try to update first, insert if not found
     const { data: existing } = await supabase
       .from("gmail_sync_state")
       .select("id")
@@ -57,7 +56,8 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.redirect(new URL("/settings?gmail=connected", req.url))
-  } catch {
+  } catch (err) {
+    console.error("Gmail callback error:", err)
     return NextResponse.redirect(new URL("/settings?error=auth_failed", req.url))
   }
 }

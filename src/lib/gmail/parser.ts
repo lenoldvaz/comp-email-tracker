@@ -66,9 +66,9 @@ export function parseGmailMessage(message: gmail_v1.Schema$Message): ParsedEmail
   const { text, html } = message.payload ? extractBody(message.payload) : { text: null, html: null }
 
   const bodyText = text
-  const snippet = bodyText
-    ? bodyText.replace(/\s+/g, " ").trim().slice(0, 200)
-    : message.snippet || null
+  // Prefer Gmail's snippet (clean text preview) over raw body text
+  const snippet = message.snippet
+    || (bodyText ? bodyText.replace(/\s+/g, " ").trim().slice(0, 200) : null)
 
   return {
     messageId: gmailMessageId,

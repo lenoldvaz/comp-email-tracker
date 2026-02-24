@@ -25,9 +25,19 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
+
+  // If the refresh token is invalid/expired, clear the stale cookies
+  if (error) {
+    // Delete all supabase auth cookies so the user gets a clean login
+    const response = NextResponse.next({ request })
+    request.cookies.getAll().forEach(({ name }) => {
+      if (name.startsWith("sb-")) {
+        response.cookies.delete(name)
+      }
+    })
+    return { user: null, supabaseResponse: response }
+  }
 
   return { user, supabaseResponse }
 }
