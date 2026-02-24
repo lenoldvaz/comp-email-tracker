@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Mail,
   Users,
@@ -11,8 +11,10 @@ import {
   Settings,
   ScrollText,
   X,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
+import { createClient } from "@/lib/supabase/client"
 
 const navItems = [
   { href: "/emails", label: "Emails", icon: Mail },
@@ -31,12 +33,24 @@ export function Sidebar({
   open,
   onClose,
   isAdmin,
+  userName,
+  userRole,
 }: {
   open: boolean
   onClose: () => void
   isAdmin: boolean
+  userName?: string | null
+  userRole?: string | null
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/login")
+    router.refresh()
+  }
 
   return (
     <>
@@ -103,6 +117,27 @@ export function Sidebar({
             </>
           )}
         </nav>
+
+        {userName && (
+          <div className="mt-auto border-t px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="truncate text-sm text-gray-600">
+                {userName}
+                {userRole === "ADMIN" && (
+                  <span className="ml-1 rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+                    Admin
+                  </span>
+                )}
+              </span>
+              <button
+                onClick={handleSignOut}
+                className="flex-shrink-0 text-gray-500 hover:text-gray-700"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
     </>
   )

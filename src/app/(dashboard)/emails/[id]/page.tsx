@@ -2,30 +2,18 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useParams, useRouter } from "next/navigation"
-import { format } from "date-fns"
 import { ArrowLeft } from "lucide-react"
-import { TagInput } from "@/components/tags/tag-input"
 import { toast } from "sonner"
-import Link from "next/link"
-
-interface EmailDetail {
-  id: string
-  subject: string
-  senderAddress: string
-  senderName: string | null
-  receivedAt: string
-  bodyText: string | null
-  bodyHtml: string | null
-  messageId: string
-  competitor: { id: string; name: string; colourHex: string | null } | null
-  category: { id: string; name: string } | null
-  tags: { id: string; name: string }[]
-}
-
-interface Category {
-  id: string
-  name: string
-}
+import type { EmailDetail, Category } from "@/types/email"
+import { useEmailView } from "@/hooks/use-email-view"
+import { EmailHeader } from "@/components/emails/email-header"
+import { EmailViewTabs } from "@/components/emails/email-view-tabs"
+import { EmailViewToolbar } from "@/components/emails/email-view-toolbar"
+import { DesktopView } from "@/components/emails/views/desktop-view"
+import { MobileView } from "@/components/emails/views/mobile-view"
+import { CodeView } from "@/components/emails/views/code-view"
+import { TextView } from "@/components/emails/views/text-view"
+import { InfoView } from "@/components/emails/views/info-view"
 
 export default function EmailDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -55,6 +43,8 @@ export default function EmailDetailPage() {
     },
   })
 
+  const view = useEmailView(id, email?.bodyHtml ?? null)
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -72,7 +62,7 @@ export default function EmailDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="mx-auto max-w-5xl p-6">
       <button
         onClick={() => router.back()}
         className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
@@ -81,80 +71,61 @@ export default function EmailDetailPage() {
         Back to list
       </button>
 
-      <div className="rounded-lg border bg-white">
-        {/* Header */}
-        <div className="space-y-4 border-b p-6">
-          <h1 className="text-xl font-bold">{email.subject}</h1>
+      <div className="overflow-hidden rounded-lg border bg-white">
+        <EmailHeader
+          email={email}
+          categories={categories || []}
+          onCategoryChange={(id) => updateCategory.mutate(id)}
+        />
 
-          <div className="flex items-center gap-3 text-sm">
-            {email.competitor?.colourHex && (
-              <span
-                className="inline-block h-3 w-3 rounded-full"
-                style={{ backgroundColor: email.competitor.colourHex }}
-              />
-            )}
-            <div>
-              <span className="font-medium">
-                {email.senderName || email.senderAddress}
-              </span>
-              <span className="ml-2 text-gray-400">{email.senderAddress}</span>
-            </div>
-            {email.competitor && (
-              <Link
-                href={`/competitors/${email.competitor.id}`}
-                className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
-              >
-                {email.competitor.name}
-              </Link>
-            )}
-          </div>
-
-          <div className="text-sm text-gray-400">
-            {format(new Date(email.receivedAt), "EEEE, MMMM d, yyyy 'at' h:mm a")}
-          </div>
-
-          {/* Category */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Category:</span>
-            <select
-              value={email.category?.id || ""}
-              onChange={(e) =>
-                updateCategory.mutate(e.target.value || null)
-              }
-              className="rounded border border-gray-200 px-2 py-1 text-sm"
-            >
-              <option value="">Uncategorized</option>
-              {categories?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <span className="mb-1 block text-sm text-gray-500">Tags:</span>
-            <TagInput emailId={email.id} tags={email.tags} />
-          </div>
+        {/* Merged tabs + toolbar row */}
+        <div className="flex items-center border-b bg-white px-3 py-1.5">
+          <EmailViewTabs
+            activeView={view.activeView}
+            onViewChange={view.setActiveView}
+            hasHtml={!!email.bodyHtml}
+            hasText={!!email.bodyText}
+          />
+          <div className="flex-1" />
+          <EmailViewToolbar
+            activeView={view.activeView}
+            darkMode={view.darkMode}
+            onDarkModeToggle={view.toggleDarkMode}
+            previewWidth={view.previewWidth}
+            onWidthChange={view.setPreviewWidth}
+          />
         </div>
 
-        {/* Body */}
-        <div className="p-6">
-          {email.bodyHtml ? (
-            <iframe
-              srcDoc={email.bodyHtml}
-              sandbox="allow-same-origin"
-              className="w-full border-0"
-              title="Email content"
-              style={{ minHeight: 600 }}
+        <div className="min-h-[500px]">
+          {view.activeView === "desktop" && (
+            <DesktopView
+              bodyHtml={email.bodyHtml}
+              bodyText={email.bodyText}
+              darkMode={view.darkMode}
+              previewWidth={view.previewWidth}
             />
-          ) : email.bodyText ? (
-            <pre className="whitespace-pre-wrap text-sm text-gray-700">
-              {email.bodyText}
-            </pre>
-          ) : (
-            <p className="text-sm text-gray-400">No content available</p>
+          )}
+          {view.activeView === "mobile" && (
+            <MobileView
+              bodyHtml={email.bodyHtml}
+              bodyText={email.bodyText}
+              darkMode={view.darkMode}
+            />
+          )}
+          {view.activeView === "code" && (
+            <CodeView bodyHtml={email.bodyHtml} />
+          )}
+          {view.activeView === "text" && (
+            <TextView bodyText={email.bodyText} />
+          )}
+          {view.activeView === "info" && (
+            <InfoView
+              email={email}
+              links={view.links}
+              images={view.images}
+              onValidateLinks={view.validateLinks}
+              linksLoading={view.linksLoading}
+            />
           )}
         </div>
       </div>
