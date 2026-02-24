@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
 import { DashboardShell } from "./dashboard-shell"
 import { Providers } from "./providers"
+
+export const dynamic = "force-dynamic"
 
 export default async function DashboardLayout({
   children,
@@ -9,23 +10,28 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
 
-  if (!user) {
-    redirect("/login")
+  const user = session?.user
+  const userId = user?.id ?? ""
+  let userName = user?.email ?? ""
+  let userRole = "MEMBER"
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("name, role")
+      .eq("id", user.id)
+      .single()
+
+    if (profile) {
+      userName = profile.name || userName
+      userRole = profile.role || userRole
+    }
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name, role")
-    .eq("id", user.id)
-    .single()
-
-  const userName = profile?.name || user.email || ""
-  const userRole = profile?.role || "MEMBER"
-
   return (
-    <Providers userId={user.id} userName={userName} userRole={userRole}>
+    <Providers userId={userId} userName={userName} userRole={userRole}>
       <DashboardShell userName={userName} userRole={userRole}>
         {children}
       </DashboardShell>

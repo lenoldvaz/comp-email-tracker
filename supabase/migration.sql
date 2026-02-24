@@ -24,7 +24,10 @@ CREATE POLICY "Users can update own profile"
 -- Trigger: auto-create profile on user signup
 -- First user becomes ADMIN, subsequent users become MEMBER
 CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS trigger AS $$
+RETURNS trigger
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   user_count int;
   user_role text;
@@ -44,7 +47,7 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Search, X } from "lucide-react"
 import { useDebounce } from "@/hooks/use-debounce"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 
 interface Competitor {
   id: string
@@ -23,6 +23,10 @@ export function EmailFilters() {
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "")
   const debouncedSearch = useDebounce(searchInput, 300)
 
+  // Keep a ref to searchParams so updateParam doesn't depend on it
+  const searchParamsRef = useRef(searchParams)
+  searchParamsRef.current = searchParams
+
   const { data: competitors } = useQuery<Competitor[]>({
     queryKey: ["competitors"],
     queryFn: () => fetch("/api/competitors").then((r) => r.json()),
@@ -35,7 +39,7 @@ export function EmailFilters() {
 
   const updateParam = useCallback(
     (key: string, value: string | null) => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(searchParamsRef.current.toString())
       if (value) {
         params.set(key, value)
       } else {
@@ -44,11 +48,15 @@ export function EmailFilters() {
       params.delete("page")
       router.push(`/emails?${params.toString()}`)
     },
-    [router, searchParams]
+    [router]
   )
 
   useEffect(() => {
-    updateParam("q", debouncedSearch || null)
+    const current = searchParamsRef.current.get("q") || ""
+    const next = debouncedSearch || ""
+    if (current !== next) {
+      updateParam("q", next || null)
+    }
   }, [debouncedSearch, updateParam])
 
   const hasFilters =

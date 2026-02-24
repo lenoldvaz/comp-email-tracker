@@ -5,20 +5,18 @@ import { updateSession } from "@/lib/supabase/middleware"
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Allow auth routes, cron endpoints, and static files
+  // Skip middleware for auth pages, API routes, and static files
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
-    pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico"
   ) {
-    // Still refresh the session cookie if present
-    const { supabaseResponse } = await updateSession(req)
-    return supabaseResponse
+    return NextResponse.next()
   }
 
+  // Refresh session and check auth for page routes only
   const { user, supabaseResponse } = await updateSession(req)
 
   if (!user) {
