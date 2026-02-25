@@ -12,9 +12,14 @@ import {
   ScrollText,
   X,
   LogOut,
+  Building2,
+  ChevronDown,
+  Plus,
 } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import { createClient } from "@/lib/supabase/client"
+import { useOrg } from "@/app/(dashboard)/org-context"
+import { useState } from "react"
 
 const navItems = [
   { href: "/emails", label: "Emails", icon: Mail },
@@ -33,22 +38,33 @@ export function Sidebar({
   open,
   onClose,
   isAdmin,
+  isViewer,
   userName,
   userRole,
 }: {
   open: boolean
   onClose: () => void
   isAdmin: boolean
+  isViewer?: boolean
   userName?: string | null
   userRole?: string | null
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { orgName, orgs, orgId } = useOrg()
+  const [orgDropdownOpen, setOrgDropdownOpen] = useState(false)
 
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/login")
+    router.refresh()
+  }
+
+  function handleOrgSwitch(newOrgId: string) {
+    // Store preference and reload
+    document.cookie = `activeOrgId=${newOrgId};path=/;max-age=${60 * 60 * 24 * 365}`
+    setOrgDropdownOpen(false)
     router.refresh()
   }
 
@@ -69,9 +85,45 @@ export function Sidebar({
         )}
       >
         <div className="flex items-center justify-between border-b px-4 py-4">
-          <Link href="/emails" className="text-lg font-bold">
-            Email Tracker
-          </Link>
+          <div className="relative flex-1">
+            <button
+              onClick={() => setOrgDropdownOpen(!orgDropdownOpen)}
+              className="flex w-full items-center gap-2 text-left"
+            >
+              <Building2 className="h-4 w-4 text-gray-500" />
+              <span className="flex-1 truncate text-sm font-bold">{orgName || "Email Tracker"}</span>
+              <ChevronDown className="h-3 w-3 text-gray-400" />
+            </button>
+            {orgDropdownOpen && (
+              <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-md border bg-white py-1 shadow-lg">
+                {orgs.map((org) => (
+                  <button
+                    key={org.orgId}
+                    onClick={() => handleOrgSwitch(org.orgId)}
+                    className={cn(
+                      "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50",
+                      org.orgId === orgId && "bg-blue-50 text-blue-700"
+                    )}
+                  >
+                    <Building2 className="h-3 w-3" />
+                    <span className="flex-1 truncate">{org.orgName}</span>
+                    <span className="text-xs text-gray-400">{org.role}</span>
+                  </button>
+                ))}
+                <div className="border-t my-1" />
+                <button
+                  onClick={() => {
+                    setOrgDropdownOpen(false)
+                    router.push("/settings/team")
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-500 hover:bg-gray-50"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>New Organization</span>
+                </button>
+              </div>
+            )}
+          </div>
           <button onClick={onClose} className="lg:hidden">
             <X className="h-5 w-5" />
           </button>
@@ -95,7 +147,7 @@ export function Sidebar({
             </Link>
           ))}
 
-          {isAdmin && (
+          {isAdmin && !isViewer && (
             <>
               <div className="my-3 border-t" />
               {adminItems.map((item) => (
@@ -123,9 +175,18 @@ export function Sidebar({
             <div className="flex items-center justify-between">
               <span className="truncate text-sm text-gray-600">
                 {userName}
-                {userRole === "ADMIN" && (
-                  <span className="ml-1 rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700">
-                    Admin
+                {userRole && (
+                  <span
+                    className={cn(
+                      "ml-1 rounded px-1.5 py-0.5 text-xs font-medium",
+                      userRole === "ADMIN"
+                        ? "bg-blue-100 text-blue-700"
+                        : userRole === "VIEWER"
+                          ? "bg-gray-100 text-gray-500"
+                          : "bg-green-100 text-green-700"
+                    )}
+                  >
+                    {userRole}
                   </span>
                 )}
               </span>

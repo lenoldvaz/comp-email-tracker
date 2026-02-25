@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useUser } from "../user-context"
+import { useOrg } from "../org-context"
 import { useState } from "react"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -14,16 +14,18 @@ interface Category {
 }
 
 export default function CategoriesPage() {
-  const { userRole } = useUser()
-  const isAdmin = userRole === "ADMIN"
+  const { orgId, orgRole } = useOrg()
+  const isAdmin = orgRole === "ADMIN"
+  const isViewer = orgRole === "VIEWER"
   const queryClient = useQueryClient()
   const [newName, setNewName] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
 
   const { data: categories, isLoading } = useQuery<Category[]>({
-    queryKey: ["categories"],
-    queryFn: () => fetch("/api/categories").then((r) => r.json()),
+    queryKey: ["categories", orgId],
+    queryFn: () => fetch(`/api/categories?orgId=${orgId}`).then((r) => r.json()),
+    enabled: !!orgId,
   })
 
   const createMutation = useMutation({
@@ -31,7 +33,7 @@ export default function CategoriesPage() {
       fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, orgId }),
       }).then((r) => {
         if (!r.ok) throw new Error("Failed")
         return r.json()
@@ -75,7 +77,7 @@ export default function CategoriesPage() {
     <div className="p-6">
       <h1 className="mb-6 text-2xl font-bold">Categories</h1>
 
-      {isAdmin && (
+      {!isViewer && (
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -106,7 +108,7 @@ export default function CategoriesPage() {
               <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
               <th className="px-4 py-3 text-left font-medium text-gray-500">Type</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">Emails</th>
-              {isAdmin && (
+              {!isViewer && (
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Actions</th>
               )}
             </tr>
@@ -156,7 +158,7 @@ export default function CategoriesPage() {
                     <td className="px-4 py-3 text-right text-gray-600">
                       {c._count.emails}
                     </td>
-                    {isAdmin && (
+                    {!isViewer && (
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-1">
                           <button
@@ -168,21 +170,23 @@ export default function CategoriesPage() {
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
-                          <button
-                            onClick={() => {
-                              if (c.isSystem) {
-                                toast.error("Cannot delete system categories")
-                                return
-                              }
-                              if (confirm("Delete this category?")) {
-                                deleteMutation.mutate(c.id)
-                              }
-                            }}
-                            disabled={c.isSystem}
-                            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => {
+                                if (c.isSystem) {
+                                  toast.error("Cannot delete system categories")
+                                  return
+                                }
+                                if (confirm("Delete this category?")) {
+                                  deleteMutation.mutate(c.id)
+                                }
+                              }}
+                              disabled={c.isSystem}
+                              className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}

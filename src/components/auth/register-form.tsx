@@ -1,11 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
 export function RegisterForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const inviteToken = searchParams.get("invite")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -28,7 +30,7 @@ export function RegisterForm() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, inviteToken: inviteToken || undefined }),
     })
 
     if (!res.ok) {
@@ -43,6 +45,11 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {inviteToken && (
+        <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-600">
+          You&apos;ve been invited to join a team. Create your account to continue.
+        </div>
+      )}
       {error && (
         <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
           {error}

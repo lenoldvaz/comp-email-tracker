@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useUser } from "../user-context"
+import { useOrg } from "../org-context"
 import { useRouter } from "next/navigation"
 import { Trash2, Pencil } from "lucide-react"
 import { toast } from "sonner"
@@ -14,16 +14,18 @@ interface Tag {
 }
 
 export default function TagsPage() {
-  const { userRole } = useUser()
-  const isAdmin = userRole === "ADMIN"
+  const { orgId, orgRole } = useOrg()
+  const isAdmin = orgRole === "ADMIN"
+  const isViewer = orgRole === "VIEWER"
   const router = useRouter()
   const queryClient = useQueryClient()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
 
   const { data: tags, isLoading } = useQuery<Tag[]>({
-    queryKey: ["tags", ""],
-    queryFn: () => fetch("/api/tags").then((r) => r.json()),
+    queryKey: ["tags", "", orgId],
+    queryFn: () => fetch(`/api/tags?orgId=${orgId}`).then((r) => r.json()),
+    enabled: !!orgId,
   })
 
   const renameMutation = useMutation({
@@ -73,7 +75,7 @@ export default function TagsPage() {
               <tr className="border-b bg-gray-50">
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Tag</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-500">Emails</th>
-                {isAdmin && (
+                {!isViewer && (
                   <th className="px-4 py-3 text-right font-medium text-gray-500">Actions</th>
                 )}
               </tr>
@@ -113,7 +115,7 @@ export default function TagsPage() {
                   <td className="px-4 py-3 text-right text-gray-600">
                     {tag._count.emails}
                   </td>
-                  {isAdmin && (
+                  {!isViewer && (
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
                         <button
@@ -125,16 +127,18 @@ export default function TagsPage() {
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Delete tag "${tag.name}"?`)) {
-                              deleteMutation.mutate(tag.id)
-                            }
-                          }}
-                          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete tag "${tag.name}"?`)) {
+                                deleteMutation.mutate(tag.id)
+                              }
+                            }}
+                            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

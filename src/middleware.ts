@@ -5,10 +5,11 @@ import { updateSession } from "@/lib/supabase/middleware"
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Skip middleware for auth pages, API routes, and static files
+  // Skip middleware for auth pages, API routes, invite page, and static files
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
+    pathname.startsWith("/invite") ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico"

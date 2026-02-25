@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { getActiveOrg } from "@/lib/auth-utils"
 import { DashboardShell } from "./dashboard-shell"
 import { Providers } from "./providers"
 
@@ -30,9 +31,20 @@ export default async function DashboardLayout({
     }
   }
 
+  // Fetch org memberships
+  const { org, orgs } = userId ? await getActiveOrg(userId) : { org: null, orgs: [] }
+
   return (
-    <Providers userId={userId} userName={userName} userRole={userRole}>
-      <DashboardShell userName={userName} userRole={userRole}>
+    <Providers
+      userId={userId}
+      userName={userName}
+      userRole={userRole}
+      orgId={org?.orgId ?? ""}
+      orgName={org?.orgName ?? ""}
+      orgRole={org?.role ?? ""}
+      orgs={orgs}
+    >
+      <DashboardShell userName={userName} userRole={userRole} orgRole={org?.role ?? ""}>
         {children}
       </DashboardShell>
     </Providers>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { requireAuth, requireAdmin } from "@/lib/auth-utils"
+import { requireAuth } from "@/lib/auth-utils"
 import { updateCompetitorSchema } from "@/types/schemas"
 
 export async function GET(
@@ -33,17 +33,32 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdmin()
+  const { error, user } = await requireAuth()
   if (error) return error
 
   const { id } = await params
+  const supabase = await createClient()
+
+  // Check role via competitor's org
+  const { data: comp } = await supabase.from("competitors").select("org_id").eq("id", id).single()
+  if (comp) {
+    const { data: membership } = await supabase
+      .from("org_members")
+      .select("role")
+      .eq("org_id", comp.org_id)
+      .eq("user_id", user!.id)
+      .single()
+    if (membership?.role === "VIEWER") {
+      return NextResponse.json({ error: "Viewers cannot edit" }, { status: 403 })
+    }
+  }
+
   const body = await req.json()
   const parsed = updateCompetitorSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.issues }, { status: 400 })
   }
 
-  const supabase = await createClient()
   const updateData: Record<string, unknown> = {}
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name
   if (parsed.data.domains !== undefined) updateData.domains = parsed.data.domains
@@ -69,11 +84,26 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdmin()
+  const { error, user } = await requireAuth()
   if (error) return error
 
   const { id } = await params
   const supabase = await createClient()
+
+  // Check admin role
+  const { data: comp } = await supabase.from("competitors").select("org_id").eq("id", id).single()
+  if (comp) {
+    const { data: membership } = await supabase
+      .from("org_members")
+      .select("role")
+      .eq("org_id", comp.org_id)
+      .eq("user_id", user!.id)
+      .single()
+    if (membership?.role !== "ADMIN") {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 })
+    }
+  }
+
   const { error: dbError } = await supabase
     .from("competitors")
     .delete()

@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useUser } from "../user-context"
+import { useOrg } from "../org-context"
 import { useState } from "react"
 import { Plus, Pencil, Trash2 } from "lucide-react"
 import Link from "next/link"
@@ -16,15 +16,17 @@ interface Competitor {
 }
 
 export default function CompetitorsPage() {
-  const { userRole } = useUser()
-  const isAdmin = userRole === "ADMIN"
+  const { orgId, orgRole } = useOrg()
+  const isAdmin = orgRole === "ADMIN"
+  const isViewer = orgRole === "VIEWER"
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
   const { data: competitors, isLoading } = useQuery<Competitor[]>({
-    queryKey: ["competitors"],
-    queryFn: () => fetch("/api/competitors").then((r) => r.json()),
+    queryKey: ["competitors", orgId],
+    queryFn: () => fetch(`/api/competitors?orgId=${orgId}`).then((r) => r.json()),
+    enabled: !!orgId,
   })
 
   const deleteMutation = useMutation({
@@ -40,7 +42,7 @@ export default function CompetitorsPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Competitors</h1>
-        {isAdmin && (
+        {!isViewer && (
           <button
             onClick={() => {
               setEditingId(null)
@@ -57,6 +59,7 @@ export default function CompetitorsPage() {
       {showForm && (
         <CompetitorForm
           editId={editingId}
+          orgId={orgId}
           onClose={() => {
             setShowForm(false)
             setEditingId(null)
@@ -89,7 +92,7 @@ export default function CompetitorsPage() {
                     {c.name}
                   </Link>
                 </div>
-                {isAdmin && (
+                {!isViewer && (
                   <div className="flex gap-1">
                     <button
                       onClick={() => {
@@ -100,16 +103,18 @@ export default function CompetitorsPage() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button
-                      onClick={() => {
-                        if (confirm("Delete this competitor?")) {
-                          deleteMutation.mutate(c.id)
-                        }
-                      }}
-                      className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          if (confirm("Delete this competitor?")) {
+                            deleteMutation.mutate(c.id)
+                          }
+                        }}
+                        className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -129,9 +134,11 @@ export default function CompetitorsPage() {
 
 function CompetitorForm({
   editId,
+  orgId,
   onClose,
 }: {
   editId: string | null
+  orgId: string
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
@@ -162,6 +169,7 @@ function CompetitorForm({
       name,
       domains: domains.split(",").map((d) => d.trim()).filter(Boolean),
       colourHex,
+      orgId,
     }
 
     const res = editId

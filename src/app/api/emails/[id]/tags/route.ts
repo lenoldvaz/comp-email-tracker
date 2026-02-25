@@ -12,24 +12,27 @@ export async function POST(
 
   const { id: emailId } = await params
   const body = await req.json()
-  const parsed = addTagToEmailSchema.safeParse(body)
+  const { orgId, ...rest } = body
+
+  const parsed = addTagToEmailSchema.safeParse(rest)
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.issues }, { status: 400 })
   }
 
   const supabase = await createClient()
 
-  // Upsert tag (create if not exists)
+  // Upsert tag (create if not exists for this org)
   let { data: tag } = await supabase
     .from("tags")
     .select("*")
     .eq("name", parsed.data.name)
+    .eq("org_id", orgId || "")
     .single()
 
   if (!tag) {
     const { data: newTag, error: tagError } = await supabase
       .from("tags")
-      .insert({ name: parsed.data.name })
+      .insert({ name: parsed.data.name, org_id: orgId || "" })
       .select()
       .single()
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useOrg } from "@/app/(dashboard)/org-context"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
@@ -19,6 +20,7 @@ export default function EmailDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { orgId } = useOrg()
 
   const { data: email, isLoading } = useQuery<EmailDetail>({
     queryKey: ["email", id],
@@ -26,8 +28,9 @@ export default function EmailDetailPage() {
   })
 
   const { data: categories } = useQuery<Category[]>({
-    queryKey: ["categories"],
-    queryFn: () => fetch("/api/categories").then((r) => r.json()),
+    queryKey: ["categories", orgId],
+    queryFn: () => fetch(`/api/categories?orgId=${orgId}`).then((r) => r.json()),
+    enabled: !!orgId,
   })
 
   const updateCategory = useMutation({

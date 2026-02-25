@@ -10,6 +10,7 @@ export async function GET(req: Request) {
   const granularity = searchParams.get("granularity") || "month"
   const dateFrom = searchParams.get("dateFrom")
   const dateTo = searchParams.get("dateTo")
+  const competitorId = searchParams.get("competitorId")
 
   const interval = granularity === "week" ? "week" : "month"
 
@@ -32,5 +33,9 @@ export async function GET(req: Request) {
     count: Number(r.count),
   }))
 
-  return NextResponse.json(formatted)
+  const filtered = competitorId
+    ? formatted.filter((r: { competitorId: string | null }) => r.competitorId === competitorId)
+    : formatted
+
+  return NextResponse.json(filtered)
 }

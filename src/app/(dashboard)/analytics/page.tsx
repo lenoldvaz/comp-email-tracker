@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 import { format } from "date-fns"
+import { Download } from "lucide-react"
 import {
   LineChart,
   Line,
@@ -18,8 +19,18 @@ import {
   Pie,
   Cell,
 } from "recharts"
+import { SendTimeHeatmap } from "@/components/analytics/send-time-heatmap"
+import { SubjectInsights } from "@/components/analytics/subject-insights"
+import { CompetitorCompare } from "@/components/analytics/competitor-compare"
+import { TrendsAlerts } from "@/components/analytics/trends-alerts"
+import { useOrg } from "../org-context"
 
 const COLORS = ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#6366F1", "#14B8A6"]
+
+interface Competitor {
+  id: string
+  name: string
+}
 
 interface VolumePoint {
   period: string
@@ -42,28 +53,48 @@ interface FrequencyRow {
   lastEmailDate: string | null
 }
 
+interface TagCount {
+  name: string
+  count: number
+}
+
 export default function AnalyticsPage() {
+  const { orgId } = useOrg()
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
+  const [competitorId, setCompetitorId] = useState("")
   const [granularity, setGranularity] = useState<"week" | "month">("month")
 
+  const filterParams = new URLSearchParams()
+  if (dateFrom) filterParams.set("dateFrom", dateFrom)
+  if (dateTo) filterParams.set("dateTo", dateTo)
+  if (competitorId) filterParams.set("competitorId", competitorId)
+  const filterQuery = filterParams.toString()
+
+  // Date-only params (for endpoints that don't support competitorId)
   const dateParams = new URLSearchParams()
   if (dateFrom) dateParams.set("dateFrom", dateFrom)
   if (dateTo) dateParams.set("dateTo", dateTo)
   const dateQuery = dateParams.toString()
 
+  const { data: competitorsList } = useQuery<Competitor[]>({
+    queryKey: ["competitors", orgId],
+    queryFn: () => fetch(`/api/competitors?orgId=${orgId}`).then((r) => r.json()),
+    enabled: !!orgId,
+  })
+
   const { data: volumeData } = useQuery<VolumePoint[]>({
-    queryKey: ["analytics-volume", granularity, dateQuery],
+    queryKey: ["analytics-volume", granularity, filterQuery],
     queryFn: () =>
       fetch(
-        `/api/analytics/volume?granularity=${granularity}${dateQuery ? `&${dateQuery}` : ""}`
+        `/api/analytics/volume?granularity=${granularity}${filterQuery ? `&${filterQuery}` : ""}`
       ).then((r) => r.json()),
   })
 
   const { data: categoryData } = useQuery<CategoryPoint[]>({
-    queryKey: ["analytics-categories", dateQuery],
+    queryKey: ["analytics-categories", filterQuery],
     queryFn: () =>
-      fetch(`/api/analytics/categories${dateQuery ? `?${dateQuery}` : ""}`).then(
+      fetch(`/api/analytics/categories${filterQuery ? `?${filterQuery}` : ""}`).then(
         (r) => r.json()
       ),
   })
@@ -76,13 +107,22 @@ export default function AnalyticsPage() {
       ),
   })
 
+  const { data: tagData } = useQuery<TagCount[]>({
+    queryKey: ["analytics-tags", dateQuery],
+    queryFn: () =>
+      fetch(`/api/analytics/tags${dateQuery ? `?${dateQuery}` : ""}`).then(
+        (r) => r.json()
+      ),
+  })
+
   // Transform volume data for recharts (pivot by competitor)
   const volumeByPeriod = new Map<string, Record<string, number>>()
   const competitors = new Set<string>()
   const competitorColors = new Map<string, string>()
 
-  volumeData?.forEach((point) => {
-    const key = format(new Date(point.period), "MMM yyyy")
+  const safeVolumeData = Array.isArray(volumeData) ? volumeData : []
+  safeVolumeData.forEach((point) => {
+    const key = format(new Date(point.period), granularity === "week" ? "MMM d" : "MMM yyyy")
     if (!volumeByPeriod.has(key)) volumeByPeriod.set(key, {})
     volumeByPeriod.get(key)![point.competitorName] = point.count
     competitors.add(point.competitorName)
@@ -94,35 +134,71 @@ export default function AnalyticsPage() {
   )
   const competitorList = Array.from(competitors)
 
+  const hasFilters = dateFrom || dateTo || competitorId
+
+  function exportFrequencyCsv() {
+    if (!frequencyData || !Array.isArray(frequencyData)) return
+    const header = "Competitor,Total Emails,Avg / Month,Last Email"
+    const rows = frequencyData.map((r) =>
+      [r.name, r.total, r.avgPerMonth, r.lastEmailDate || ""].join(",")
+    )
+    const csv = [header, ...rows].join("\n")
+    const blob = new Blob([csv], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `competitor-frequency-${new Date().toISOString().split("T")[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const safeCompetitors = Array.isArray(competitorsList) ? competitorsList : []
+
   return (
     <div className="space-y-8 p-6">
       <h1 className="text-2xl font-bold">Analytics</h1>
 
-      {/* Date range filter */}
+      {/* Global filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <label className="text-sm text-gray-500">Date range:</label>
+        <select
+          value={competitorId}
+          onChange={(e) => setCompetitorId(e.target.value)}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+        >
+          <option value="">All competitors</option>
+          {safeCompetitors.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+
+        <div className="h-5 border-l border-gray-200" />
+
+        <label className="text-sm text-gray-500">From</label>
         <input
           type="date"
           value={dateFrom}
           onChange={(e) => setDateFrom(e.target.value)}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
         />
-        <span className="text-gray-400">to</span>
+        <label className="text-sm text-gray-500">to</label>
         <input
           type="date"
           value={dateTo}
           onChange={(e) => setDateTo(e.target.value)}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
         />
-        {(dateFrom || dateTo) && (
+        {hasFilters && (
           <button
             onClick={() => {
               setDateFrom("")
               setDateTo("")
+              setCompetitorId("")
             }}
             className="text-sm text-gray-400 hover:text-gray-600"
           >
-            Clear
+            Clear all
           </button>
         )}
       </div>
@@ -174,7 +250,7 @@ export default function AnalyticsPage() {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={categoryData || []}
+                data={Array.isArray(categoryData) ? categoryData : []}
                 dataKey="count"
                 nameKey="name"
                 cx="50%"
@@ -182,7 +258,7 @@ export default function AnalyticsPage() {
                 outerRadius={100}
                 label={({ name, value }) => `${name} (${value})`}
               >
-                {categoryData?.map((_, i) => (
+                {(Array.isArray(categoryData) ? categoryData : []).map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
@@ -195,7 +271,7 @@ export default function AnalyticsPage() {
         <div className="rounded-lg border bg-white p-6">
           <h2 className="mb-4 font-semibold">Category Breakdown</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={categoryData || []} layout="vertical">
+            <BarChart data={Array.isArray(categoryData) ? categoryData : []} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" tick={{ fontSize: 12 }} />
               <YAxis dataKey="name" type="category" tick={{ fontSize: 12 }} width={120} />
@@ -206,9 +282,35 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {/* Top Tags */}
+      {Array.isArray(tagData) && tagData.length > 0 && (
+        <div className="rounded-lg border bg-white p-6">
+          <h2 className="mb-4 font-semibold">Top Tags</h2>
+          <ResponsiveContainer width="100%" height={Math.max(200, tagData.length * 32)}>
+            <BarChart data={tagData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" tick={{ fontSize: 12 }} />
+              <YAxis dataKey="name" type="category" tick={{ fontSize: 12 }} width={120} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#8B5CF6" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       {/* Competitor frequency table */}
       <div className="rounded-lg border bg-white p-6">
-        <h2 className="mb-4 font-semibold">Competitor Send Frequency</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-semibold">Competitor Send Frequency</h2>
+          <button
+            onClick={exportFrequencyCsv}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
+            title="Export as CSV"
+          >
+            <Download className="h-3 w-3" />
+            Export
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -228,7 +330,7 @@ export default function AnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {frequencyData?.map((row) => (
+              {(Array.isArray(frequencyData) ? frequencyData : []).map((row) => (
                 <tr key={row.id} className="border-b last:border-0">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -248,7 +350,7 @@ export default function AnalyticsPage() {
                   <td className="px-4 py-3 text-right text-gray-500">
                     {row.lastEmailDate
                       ? format(new Date(row.lastEmailDate), "MMM d, yyyy")
-                      : "—"}
+                      : "---"}
                   </td>
                 </tr>
               ))}
@@ -256,6 +358,18 @@ export default function AnalyticsPage() {
           </table>
         </div>
       </div>
+
+      {/* Send-time heatmap */}
+      <SendTimeHeatmap filterQuery={filterQuery} />
+
+      {/* Subject line insights */}
+      <SubjectInsights dateQuery={dateQuery} />
+
+      {/* Competitor comparison */}
+      <CompetitorCompare dateQuery={dateQuery} />
+
+      {/* Trends & Alerts */}
+      <TrendsAlerts />
     </div>
   )
 }

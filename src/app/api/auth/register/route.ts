@@ -6,6 +6,7 @@ const registerSchema = z.object({
   name: z.string().min(1),
   email: z.email(),
   password: z.string().min(8),
+  inviteToken: z.string().optional(),
 })
 
 export async function POST(req: Request) {
@@ -20,11 +21,11 @@ export async function POST(req: Request) {
       )
     }
 
-    const { name, email, password } = parsed.data
+    const { name, email, password, inviteToken } = parsed.data
     const supabase = createServiceClient()
 
-    // Sign up via Supabase Auth (profile + role is set by the DB trigger)
-    const { error } = await supabase.auth.admin.createUser({
+    // Sign up via Supabase Auth (profile is set by the DB trigger)
+    const { data: authData, error } = await supabase.auth.admin.createUser({
       email,
       password,
       user_metadata: { name },
@@ -39,6 +40,33 @@ export async function POST(req: Request) {
         )
       }
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    // If invite token provided, accept the invitation
+    if (inviteToken && authData.user) {
+      const { data: invitation } = await supabase
+        .from("invitations")
+        .select("*")
+        .eq("token", inviteToken)
+        .is("accepted_at", null)
+        .single()
+
+      if (invitation && new Date(invitation.expires_at) > new Date()) {
+        // Add to org
+        await supabase
+          .from("org_members")
+          .insert({
+            org_id: invitation.org_id,
+            user_id: authData.user.id,
+            role: invitation.role,
+          })
+
+        // Mark invitation as accepted
+        await supabase
+          .from("invitations")
+          .update({ accepted_at: new Date().toISOString() })
+          .eq("id", invitation.id)
+      }
     }
 
     return NextResponse.json({ message: "Account created" }, { status: 201 })

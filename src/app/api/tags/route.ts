@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { requireAuth } from "@/lib/auth-utils"
+import { requireAuth, requireOrgMember } from "@/lib/auth-utils"
 import { createTagSchema } from "@/types/schemas"
 
 export async function GET(req: Request) {
@@ -9,6 +9,7 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url)
   const q = searchParams.get("q")
+  const orgId = searchParams.get("orgId")
 
   const supabase = await createClient()
   let query = supabase
@@ -17,9 +18,8 @@ export async function GET(req: Request) {
     .order("name")
     .limit(50)
 
-  if (q) {
-    query = query.ilike("name", `${q.toLowerCase()}%`)
-  }
+  if (orgId) query = query.eq("org_id", orgId)
+  if (q) query = query.ilike("name", `${q.toLowerCase()}%`)
 
   const { data: tags, error: dbError } = await query
 
@@ -37,22 +37,33 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { error } = await requireAuth()
+  const body = await req.json()
+  const { orgId, ...rest } = body
+
+  if (!orgId) {
+    return NextResponse.json({ error: "orgId is required" }, { status: 400 })
+  }
+
+  const { error, orgRole } = await requireOrgMember(orgId)
   if (error) return error
 
-  const body = await req.json()
-  const parsed = createTagSchema.safeParse(body)
+  if (orgRole === "VIEWER") {
+    return NextResponse.json({ error: "Viewers cannot create tags" }, { status: 403 })
+  }
+
+  const parsed = createTagSchema.safeParse(rest)
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input", details: parsed.error.issues }, { status: 400 })
   }
 
   const supabase = await createClient()
 
-  // Check if tag exists
+  // Check if tag exists in this org
   const { data: existing } = await supabase
     .from("tags")
     .select("*")
     .eq("name", parsed.data.name)
+    .eq("org_id", orgId)
     .single()
 
   if (existing) {
@@ -61,7 +72,7 @@ export async function POST(req: Request) {
 
   const { data: tag, error: dbError } = await supabase
     .from("tags")
-    .insert({ name: parsed.data.name })
+    .insert({ name: parsed.data.name, org_id: orgId })
     .select()
     .single()
 

@@ -3,7 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { toast } from "sonner"
-import { Mail, RefreshCw, Unplug, Plug } from "lucide-react"
+import { Mail, RefreshCw, Unplug, Plug, Users } from "lucide-react"
+import Link from "next/link"
 
 interface GmailStatus {
   connected: boolean
@@ -69,6 +70,18 @@ export default function SettingsPage() {
   return (
     <div className="p-6">
       <h1 className="mb-6 text-2xl font-bold">Settings</h1>
+
+      {/* Team Management link */}
+      <Link
+        href="/settings/team"
+        className="mb-6 flex items-center gap-3 rounded-lg border bg-white p-4 hover:bg-gray-50 transition-colors"
+      >
+        <Users className="h-5 w-5 text-gray-600" />
+        <div>
+          <h2 className="font-semibold">Team Management</h2>
+          <p className="text-sm text-gray-500">Manage members, roles, and invitations</p>
+        </div>
+      </Link>
 
       {/* Gmail Connection */}
       <div className="rounded-lg border bg-white p-6">

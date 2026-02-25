@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useDebounce } from "@/hooks/use-debounce"
+import { useOrg } from "@/app/(dashboard)/org-context"
 import { X } from "lucide-react"
 import { toast } from "sonner"
 
@@ -22,14 +23,15 @@ export function TagInput({
   const debouncedInput = useDebounce(input, 200)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const queryClient = useQueryClient()
+  const { orgId } = useOrg()
 
   const { data: suggestions } = useQuery<(Tag & { _count: { emails: number } })[]>({
-    queryKey: ["tags", debouncedInput],
+    queryKey: ["tags", debouncedInput, orgId],
     queryFn: () =>
-      fetch(`/api/tags?q=${encodeURIComponent(debouncedInput)}`).then((r) =>
+      fetch(`/api/tags?q=${encodeURIComponent(debouncedInput)}&orgId=${orgId}`).then((r) =>
         r.json()
       ),
-    enabled: debouncedInput.length > 0,
+    enabled: debouncedInput.length > 0 && !!orgId,
   })
 
   const addTag = useMutation({
@@ -37,7 +39,7 @@ export function TagInput({
       fetch(`/api/emails/${emailId}/tags`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, orgId }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["email", emailId] })

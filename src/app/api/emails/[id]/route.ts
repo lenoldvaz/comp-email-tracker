@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { requireAuth, requireAdmin } from "@/lib/auth-utils"
+import { requireAuth } from "@/lib/auth-utils"
 import { updateEmailSchema } from "@/types/schemas"
 
 export async function GET(
@@ -38,6 +38,7 @@ export async function GET(
     competitorId: email.competitor_id,
     categoryId: email.category_id,
     createdAt: email.created_at,
+    orgId: email.org_id,
     competitor: email.competitors || null,
     category: email.categories || null,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -55,6 +56,7 @@ export async function GET(
     competitor_id: undefined,
     category_id: undefined,
     created_at: undefined,
+    org_id: undefined,
   })
 }
 
@@ -62,7 +64,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAuth()
+  const { error, user } = await requireAuth()
   if (error) return error
 
   const { id } = await params
@@ -73,10 +75,25 @@ export async function PATCH(
   }
 
   const supabase = await createClient()
+
+  // Check viewer role via the email's org
+  const { data: email } = await supabase.from("emails").select("org_id").eq("id", id).single()
+  if (email) {
+    const { data: membership } = await supabase
+      .from("org_members")
+      .select("role")
+      .eq("org_id", email.org_id)
+      .eq("user_id", user!.id)
+      .single()
+    if (membership?.role === "VIEWER") {
+      return NextResponse.json({ error: "Viewers cannot edit" }, { status: 403 })
+    }
+  }
+
   const updateData: Record<string, unknown> = {}
   if (parsed.data.categoryId !== undefined) updateData.category_id = parsed.data.categoryId
 
-  const { data: email, error: dbError } = await supabase
+  const { data: updated, error: dbError } = await supabase
     .from("emails")
     .update(updateData)
     .eq("id", id)
@@ -87,18 +104,33 @@ export async function PATCH(
     return NextResponse.json({ error: dbError.message }, { status: 500 })
   }
 
-  return NextResponse.json(email)
+  return NextResponse.json(updated)
 }
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdmin()
+  const { error, user } = await requireAuth()
   if (error) return error
 
   const { id } = await params
   const supabase = await createClient()
+
+  // Check admin role via the email's org
+  const { data: email } = await supabase.from("emails").select("org_id").eq("id", id).single()
+  if (email) {
+    const { data: membership } = await supabase
+      .from("org_members")
+      .select("role")
+      .eq("org_id", email.org_id)
+      .eq("user_id", user!.id)
+      .single()
+    if (membership?.role !== "ADMIN") {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 })
+    }
+  }
+
   const { error: dbError } = await supabase
     .from("emails")
     .delete()

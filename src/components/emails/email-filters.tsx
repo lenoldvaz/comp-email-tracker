@@ -2,8 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Search, X } from "lucide-react"
+import { Search, X, Download } from "lucide-react"
 import { useDebounce } from "@/hooks/use-debounce"
+import { useOrg } from "@/app/(dashboard)/org-context"
 import { useState, useEffect, useRef, useCallback } from "react"
 
 interface Competitor {
@@ -19,6 +20,7 @@ interface Category {
 export function EmailFilters() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { orgId } = useOrg()
 
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "")
   const debouncedSearch = useDebounce(searchInput, 300)
@@ -28,13 +30,15 @@ export function EmailFilters() {
   searchParamsRef.current = searchParams
 
   const { data: competitors } = useQuery<Competitor[]>({
-    queryKey: ["competitors"],
-    queryFn: () => fetch("/api/competitors").then((r) => r.json()),
+    queryKey: ["competitors", orgId],
+    queryFn: () => fetch(`/api/competitors?orgId=${orgId}`).then((r) => r.json()),
+    enabled: !!orgId,
   })
 
   const { data: categories } = useQuery<Category[]>({
-    queryKey: ["categories"],
-    queryFn: () => fetch("/api/categories").then((r) => r.json()),
+    queryKey: ["categories", orgId],
+    queryFn: () => fetch(`/api/categories?orgId=${orgId}`).then((r) => r.json()),
+    enabled: !!orgId,
   })
 
   const updateParam = useCallback(
@@ -141,6 +145,22 @@ export function EmailFilters() {
             Clear
           </button>
         )}
+
+        <button
+          onClick={() => {
+            const exportParams = new URLSearchParams(searchParams.toString())
+            exportParams.delete("page")
+            exportParams.delete("pageSize")
+            exportParams.delete("sort")
+            exportParams.delete("selected")
+            window.location.href = `/api/emails/export?${exportParams.toString()}`
+          }}
+          className="flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-100 ml-auto"
+          title="Export filtered emails as CSV"
+        >
+          <Download className="h-3 w-3" />
+          CSV
+        </button>
       </div>
     </div>
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useOrg } from "@/app/(dashboard)/org-context"
 import { toast } from "sonner"
 import type { EmailDetail, Category } from "@/types/email"
 import { useEmailView } from "@/hooks/use-email-view"
@@ -21,6 +22,7 @@ interface EmailPreviewProps {
 
 export function EmailPreview({ emailId, focusMode, onFocusToggle }: EmailPreviewProps) {
   const queryClient = useQueryClient()
+  const { orgId } = useOrg()
 
   const { data: email, isLoading } = useQuery<EmailDetail>({
     queryKey: ["email", emailId],
@@ -29,8 +31,9 @@ export function EmailPreview({ emailId, focusMode, onFocusToggle }: EmailPreview
   })
 
   const { data: categories } = useQuery<Category[]>({
-    queryKey: ["categories"],
-    queryFn: () => fetch("/api/categories").then((r) => r.json()),
+    queryKey: ["categories", orgId],
+    queryFn: () => fetch(`/api/categories?orgId=${orgId}`).then((r) => r.json()),
+    enabled: !!orgId,
   })
 
   const updateCategory = useMutation({

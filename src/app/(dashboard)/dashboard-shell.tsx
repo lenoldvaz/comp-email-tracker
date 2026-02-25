@@ -9,10 +9,12 @@ function ShellInner({
   children,
   userName,
   userRole,
+  orgRole,
 }: {
   children: React.ReactNode
   userName?: string | null
   userRole?: string | null
+  orgRole?: string | null
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { chromeHidden } = useShell()
@@ -25,14 +27,17 @@ function ShellInner({
     )
   }
 
+  const effectiveRole = orgRole || userRole
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        isAdmin={userRole === "ADMIN"}
+        isAdmin={effectiveRole === "ADMIN"}
+        isViewer={effectiveRole === "VIEWER"}
         userName={userName}
-        userRole={userRole}
+        userRole={effectiveRole}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar
@@ -48,14 +53,16 @@ export function DashboardShell({
   children,
   userName,
   userRole,
+  orgRole,
 }: {
   children: React.ReactNode
   userName?: string | null
   userRole?: string | null
+  orgRole?: string | null
 }) {
   return (
     <ShellProvider>
-      <ShellInner userName={userName} userRole={userRole}>
+      <ShellInner userName={userName} userRole={userRole} orgRole={orgRole}>
         {children}
       </ShellInner>
     </ShellProvider>
