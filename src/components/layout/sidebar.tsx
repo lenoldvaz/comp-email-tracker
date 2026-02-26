@@ -11,6 +11,7 @@ import {
   PenTool,
   Settings,
   ScrollText,
+  Timer,
   X,
   LogOut,
   Building2,
@@ -33,6 +34,7 @@ const navItems = [
 
 const adminItems = [
   { href: "/ingestion-log", label: "Ingestion Log", icon: ScrollText },
+  { href: "/cron", label: "Cron Monitor", icon: Timer },
   { href: "/settings", label: "Settings", icon: Settings },
 ]
 

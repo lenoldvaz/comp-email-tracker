@@ -39,6 +39,11 @@ export async function GET(
     categoryId: email.category_id,
     createdAt: email.created_at,
     orgId: email.org_id,
+    aiSummary: email.ai_summary || null,
+    aiCategory: email.ai_category || null,
+    aiTags: email.ai_tags || null,
+    aiSentiment: email.ai_sentiment || null,
+    aiProcessedAt: email.ai_processed_at || null,
     competitor: email.competitors || null,
     category: email.categories || null,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,6 +62,11 @@ export async function GET(
     category_id: undefined,
     created_at: undefined,
     org_id: undefined,
+    ai_summary: undefined,
+    ai_category: undefined,
+    ai_tags: undefined,
+    ai_sentiment: undefined,
+    ai_processed_at: undefined,
   })
 }
 

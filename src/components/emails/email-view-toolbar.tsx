@@ -1,6 +1,6 @@
 "use client"
 
-import { Moon, Sun, Smartphone, Tablet, Monitor, Maximize2, Minimize2 } from "lucide-react"
+import { Moon, Sun, Smartphone, Tablet, Monitor, Maximize2, Minimize2, Expand } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 import type { EmailViewMode } from "@/types/email"
 import { WIDTH_PRESETS } from "@/types/email"
@@ -20,7 +20,7 @@ const presetIcons: Record<string, React.ElementType> = {
   "Phone L": Smartphone,
   Tablet: Tablet,
   Desktop: Monitor,
-  Full: Maximize2,
+  Full: Expand,
 }
 
 export function EmailViewToolbar({

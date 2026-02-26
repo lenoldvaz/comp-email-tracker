@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import type { EmailDetail, Category } from "@/types/email"
 import { useEmailView } from "@/hooks/use-email-view"
 import { EmailHeader } from "@/components/emails/email-header"
+import { AiInsights } from "@/components/emails/ai-insights"
 import { EmailViewTabs } from "@/components/emails/email-view-tabs"
 import { EmailViewToolbar } from "@/components/emails/email-view-toolbar"
 import { DesktopView } from "@/components/emails/views/desktop-view"
@@ -76,6 +77,12 @@ export default function EmailDetailPage() {
 
       <div className="overflow-hidden rounded-lg border bg-white">
         <EmailHeader
+          email={email}
+          categories={categories || []}
+          onCategoryChange={(id) => updateCategory.mutate(id)}
+        />
+
+        <AiInsights
           email={email}
           categories={categories || []}
           onCategoryChange={(id) => updateCategory.mutate(id)}

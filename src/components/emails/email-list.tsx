@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { format } from "date-fns"
+import { Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils/cn"
 
 interface EmailListItem {
@@ -15,6 +16,7 @@ interface EmailListItem {
   competitor: { id: string; name: string; colourHex: string | null } | null
   category: { id: string; name: string } | null
   tags: { id: string; name: string }[]
+  aiSummary: string | null
 }
 
 interface EmailListResponse {
@@ -98,6 +100,12 @@ export function EmailList({
                 </span>
               )}
             </div>
+            {email.aiSummary && (
+              <div className="flex items-center gap-1 truncate text-xs text-amber-600">
+                <Sparkles className="h-3 w-3 shrink-0" />
+                <span className="truncate">{email.aiSummary}</span>
+              </div>
+            )}
             {(email.tags.length > 0 || email.category) && (
               <div className="flex flex-wrap gap-1">
                 {email.category && (

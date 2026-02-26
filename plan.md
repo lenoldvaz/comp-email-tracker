@@ -1,10 +1,44 @@
 # Multi-Tenant Organizations, Enhanced Analytics & Email Builder — Progress
 
-## Status: Phase 7 Complete (Email Builder & Testing)
+## Status: Phase 9 Complete (AI Intelligence Layer)
 
 ---
 
 ## Completed
+
+### Phase 9: AI Intelligence Layer (All Done)
+
+#### AI Analysis Engine
+- [x] **Database migration** — `supabase/migration-ai.sql` (ai_summary, ai_category, ai_tags, ai_sentiment, ai_processed_at columns on emails)
+- [x] **OpenAI SDK** — `openai` npm package, GPT-4o-mini model for cost-effective analysis (~$0.00027/email)
+- [x] **AI client** — `src/lib/ai/client.ts` with `analyzeEmail()` function (structured JSON output, 3000-char body truncation, graceful null on failure)
+- [x] **Processor integration** — `src/lib/gmail/processor.ts` calls AI after email insert (try/catch wrapped, never blocks ingestion)
+- [x] **Graceful degradation** — AI skipped entirely if `OPENAI_API_KEY` not set
+
+#### AI APIs
+- [x] **Email detail API** — `src/app/api/emails/[id]/route.ts` returns aiSummary, aiCategory, aiTags, aiSentiment, aiProcessedAt
+- [x] **Email list API** — `src/app/api/emails/route.ts` returns aiSummary in list response
+- [x] **Re-analyze endpoint** — `src/app/api/emails/[id]/ai/route.ts` (POST, auth + non-VIEWER check)
+
+#### AI UI
+- [x] **AI Insights panel** — `src/components/emails/ai-insights.tsx` (collapsible, default open)
+  - Summary display, sentiment badge (green/gray/red), suggested category with "Apply" button
+  - Suggested tags with "Add" buttons (filters already-applied tags), re-analyze button
+- [x] **Email detail page** — AI Insights panel between header and view tabs
+- [x] **Email preview (split view)** — AI Insights panel added to `email-preview.tsx`
+- [x] **Email list** — AI summary line with sparkle icon below snippet
+- [x] **TypeScript types** — AI fields added to `EmailDetail` interface in `src/types/email.ts`
+
+#### Bug Fixes
+- [x] **Focus mode state reset** — moved state above Suspense boundary in `emails/page.tsx`
+- [x] **Focus mode list still visible** — preview div now shows on all screen sizes when in focus mode
+- [x] **Duplicate maximize icons** — changed "Full" width preset icon from Maximize2 to Expand
+- [x] **setChromeHidden in render** — moved out of setFocusMode updater function to avoid cross-component setState during render
+
+#### Backfill
+- [x] **All 76 emails analyzed** — ran batch analysis with auto-tag creation and linking
+
+---
 
 ### Part B: Enhanced Analytics (All Done)
 - [x] **B1. Top Tags Bar Chart** — RPC `analytics_top_tags`, API route `/api/analytics/tags`, integrated into analytics page
@@ -68,33 +102,6 @@
 
 ---
 
-## Remaining: Run Database Migrations
-
-The code is complete. The user needs to run two SQL migrations in the Supabase SQL Editor:
-
-### Step 1: Clean up partial migration (if previously attempted)
-```sql
-DROP FUNCTION IF EXISTS auth_user_org_ids() CASCADE;
-DROP FUNCTION IF EXISTS auth_user_admin_org_ids() CASCADE;
-DROP FUNCTION IF EXISTS auth_user_write_org_ids() CASCADE;
-DROP FUNCTION IF EXISTS org_has_members(text) CASCADE;
-DROP TABLE IF EXISTS invitations CASCADE;
-DROP TABLE IF EXISTS org_members CASCADE;
-DROP TABLE IF EXISTS organizations CASCADE;
-ALTER TABLE competitors DROP COLUMN IF EXISTS org_id;
-ALTER TABLE categories DROP COLUMN IF EXISTS org_id;
-ALTER TABLE tags DROP COLUMN IF EXISTS org_id;
-ALTER TABLE emails DROP COLUMN IF EXISTS org_id;
-ALTER TABLE ingestion_logs DROP COLUMN IF EXISTS org_id;
-ALTER TABLE gmail_sync_state DROP COLUMN IF EXISTS org_id;
-```
-
-### Step 2: Run `supabase/migration-orgs.sql`
-Creates organizations, org_members, invitations tables + SECURITY DEFINER helpers + org-scoped RLS policies + backfills existing data.
-
-### Step 3: Run `supabase/migration-analytics.sql`
-Creates RPC functions: `analytics_top_tags`, `analytics_send_times`, `analytics_subject_insights`, `analytics_weekly_trends`.
-
 ---
 
 ## Phase 7: Email Builder & Testing (All Done)
@@ -152,8 +159,23 @@ Creates RPC functions: `analytics_top_tags`, `analytics_send_times`, `analytics_
 - `juice`, `html-minifier-terser`, `clean-css`, `nodemailer`, `jszip`
 - `@types/nodemailer`, `@types/clean-css`, `@types/html-minifier-terser`
 
-### Remaining: Run Database Migration
-Run `supabase/migration-drafts.sql` in the Supabase SQL Editor to create the email_drafts, email_snippets, and global_styles tables.
+---
+
+### Phase 8: Cron Monitor & Gmail Sync Fix (All Done)
+
+#### Cron Monitor Dashboard
+- [x] **Migration** — `supabase/migration-cron.sql` (cron_runs, cron_settings tables with org-scoped RLS)
+- [x] **Cron utilities** — `src/lib/utils/cron.ts` (`describeCron()`, `getNextRun()` — no npm deps)
+- [x] **Run logging** — `src/app/api/cron/ingest/route.ts` wraps `processNewEmails()` with cron_runs tracking (trigger: `cron`)
+- [x] **Manual trigger logging** — `src/app/api/ingestion/trigger/route.ts` wraps with cron_runs tracking (trigger: `manual`)
+- [x] **Runs API** — `src/app/api/cron/runs/route.ts` (GET — paginated run history + success rate / avg duration stats)
+- [x] **Settings API** — `src/app/api/cron/settings/route.ts` (GET/PUT — schedule, enabled, notification prefs)
+- [x] **Dashboard page** — `src/app/(dashboard)/cron/page.tsx` (health cards, run history table with status filter + pagination, collapsible settings panel with schedule presets)
+- [x] **Sidebar** — added "Cron Monitor" nav item with Timer icon (between Ingestion Log and Settings)
+
+#### Gmail Sync Fix
+- [x] **Replaced History API with rolling window** — `src/lib/gmail/poller.ts` now queries Gmail for competitor emails from the last 7 days every run, instead of relying on the unreliable History API. Dedup in processor handles re-fetched emails.
+- [x] **Added "skipped" logging** — `src/lib/gmail/processor.ts` now logs `skipped` status with sender address for non-competitor emails (previously silently discarded)
 
 ---
 
@@ -169,7 +191,11 @@ Run `supabase/migration-drafts.sql` in the Supabase SQL Editor to create the ema
 | Team UI | `src/app/(dashboard)/settings/team/page.tsx` |
 | Sidebar | `src/components/layout/sidebar.tsx` |
 | Analytics | `src/app/api/analytics/*/route.ts`, `src/components/analytics/*.tsx`, `src/app/(dashboard)/analytics/page.tsx` |
-| Gmail Sync | `src/lib/gmail/processor.ts` |
+| AI Engine | `src/lib/ai/client.ts`, `src/app/api/emails/[id]/ai/route.ts`, `src/components/emails/ai-insights.tsx` |
+| AI DB | `supabase/migration-ai.sql` |
+| Gmail Sync | `src/lib/gmail/processor.ts`, `src/lib/gmail/poller.ts` |
+| Cron Monitor | `src/app/(dashboard)/cron/page.tsx`, `src/app/api/cron/runs/route.ts`, `src/app/api/cron/settings/route.ts`, `src/lib/utils/cron.ts` |
+| Cron DB | `supabase/migration-cron.sql` |
 | Drafts DB | `supabase/migration-drafts.sql` |
 | Drafts Types | `src/types/draft.ts`, `src/lib/validations/draft.ts` |
 | Drafts API | `src/app/api/drafts/`, `src/app/api/snippets/`, `src/app/api/styles/`, `src/app/api/templates/` |

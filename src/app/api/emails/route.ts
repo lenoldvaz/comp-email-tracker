@@ -59,7 +59,7 @@ export async function GET(req: Request) {
     .from("emails")
     .select(`
       id, subject, sender_address, sender_name, received_at, snippet,
-      competitor_id, category_id,
+      competitor_id, category_id, ai_summary,
       competitors:competitor_id(id, name, colour_hex),
       categories:category_id(id, name),
       email_tags(tag_id, tags:tag_id(id, name))
@@ -114,6 +114,7 @@ export async function GET(req: Request) {
     snippet: e.snippet,
     competitorId: e.competitor_id,
     categoryId: e.category_id,
+    aiSummary: e.ai_summary || null,
     competitor: e.competitors || null,
     category: e.categories || null,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

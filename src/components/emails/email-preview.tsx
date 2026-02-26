@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import type { EmailDetail, Category } from "@/types/email"
 import { useEmailView } from "@/hooks/use-email-view"
 import { EmailHeader } from "./email-header"
+import { AiInsights } from "./ai-insights"
 import { EmailViewTabs } from "./email-view-tabs"
 import { EmailViewToolbar } from "./email-view-toolbar"
 import { DesktopView } from "./views/desktop-view"
@@ -70,6 +71,12 @@ export function EmailPreview({ emailId, focusMode, onFocusToggle }: EmailPreview
         onCategoryChange={(id) => updateCategory.mutate(id)}
         compact
         showFullLink
+      />
+
+      <AiInsights
+        email={email}
+        categories={categories || []}
+        onCategoryChange={(id) => updateCategory.mutate(id)}
       />
 
       {/* Merged tabs + toolbar row */}

@@ -11,6 +11,11 @@ export interface EmailDetail {
   competitor: { id: string; name: string; colourHex: string | null } | null
   category: { id: string; name: string } | null
   tags: { id: string; name: string }[]
+  aiSummary: string | null
+  aiCategory: string | null
+  aiTags: string[] | null
+  aiSentiment: string | null
+  aiProcessedAt: string | null
 }
 
 export interface Category {
