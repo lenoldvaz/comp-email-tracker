@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Tags,
   BarChart3,
+  PenTool,
   Settings,
   ScrollText,
   X,
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/categories", label: "Categories", icon: FolderOpen },
   { href: "/tags", label: "Tags", icon: Tags },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/drafts", label: "Drafts", icon: PenTool },
 ]
 
 const adminItems = [

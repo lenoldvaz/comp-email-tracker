@@ -1,6 +1,6 @@
-# Multi-Tenant Organizations & Enhanced Analytics — Progress
+# Multi-Tenant Organizations, Enhanced Analytics & Email Builder — Progress
 
-## Status: In Progress (DB Migration Fix)
+## Status: Phase 7 Complete (Email Builder & Testing)
 
 ---
 
@@ -97,11 +97,71 @@ Creates RPC functions: `analytics_top_tags`, `analytics_send_times`, `analytics_
 
 ---
 
+## Phase 7: Email Builder & Testing (All Done)
+
+### Database & Types
+- [x] **Migration** — `supabase/migration-drafts.sql` (email_drafts, email_snippets, global_styles tables with org-scoped RLS)
+- [x] **TypeScript types** — `src/types/draft.ts` (EmailDraft, EmailSnippet, GlobalStyles, DraftBlock, BlockProperties)
+- [x] **Zod schemas** — `src/lib/validations/draft.ts` (create/update draft, snippet, styles, transform, test-send)
+
+### API Routes (12 files)
+- [x] `POST/GET /api/drafts` — list + create drafts
+- [x] `GET/PATCH/DELETE /api/drafts/[id]` — CRUD single draft
+- [x] `POST /api/drafts/[id]/duplicate` — clone a draft
+- [x] `POST /api/drafts/[id]/transform` — CSS inline (juice), minify (html-minifier-terser), clean CSS, UTM params
+- [x] `POST /api/drafts/[id]/test-send` — send test email via nodemailer SMTP
+- [x] `GET /api/drafts/[id]/export` — download as HTML or ZIP (jszip)
+- [x] `POST /api/drafts/[id]/validate` — link, image, accessibility, spam, Gmail clipping checks
+- [x] `GET/POST /api/snippets` + `GET/PATCH/DELETE /api/snippets/[id]` — CRUD snippets
+- [x] `GET/PUT /api/styles` — get/upsert global styles per org
+- [x] `GET /api/templates` — list drafts where is_template=true
+
+### Code Editor & Preview
+- [x] **CodeMirror 6 editor** — `code-editor.tsx` with HTML language, syntax highlighting, autocomplete, bracket matching, dark/light themes
+- [x] **Live preview** — `live-preview.tsx` with iframe srcDoc, desktop/mobile toggle, dark mode
+- [x] **HTML checker** — `html-checker.tsx` client-side lint for deprecated tags, unsupported CSS, missing alt text, file size
+- [x] **Editor toolbar** — `editor-toolbar.tsx` with Code/Visual/Preview tabs, format, save status
+
+### Pages & Navigation
+- [x] **Drafts list** — `drafts/page.tsx` with search, create, duplicate, delete, template picker
+- [x] **Draft editor** — `drafts/[id]/page.tsx` with Code/Visual/Preview tabs, auto-save (2s debounce), Cmd+S, title/subject inputs, right sidebar with transformers + validation
+- [x] **Sidebar** — added "Drafts" nav item with PenTool icon
+
+### Visual Drag-and-Drop Editor
+- [x] **Visual editor** — `visual-editor.tsx` container wiring palette + canvas + properties
+- [x] **Block palette** — `block-palette.tsx` with 8 draggable block types (text, image, button, columns, divider, spacer, header, footer)
+- [x] **Block canvas** — `block-canvas.tsx` drop zone with reordering, selection, delete, drop indicators
+- [x] **Block properties** — `block-properties.tsx` context-sensitive editors for each block type
+- [x] **Block serializer** — `block-serializer.ts` with blocksToHtml(), htmlToBlocks(), table-based email layout
+
+### Templates, Snippets, Global Styles
+- [x] **Template picker** — `template-picker.tsx` modal for creating drafts from templates
+- [x] **Snippet manager** — `snippet-manager.tsx` CRUD with search + insert into editor
+- [x] **Global styles** — `settings/styles/page.tsx` brand colors, fonts, button defaults with live preview
+
+### Testing & QA
+- [x] **Test send dialog** — `test-send-dialog.tsx` multi-recipient, custom subject, SMTP via nodemailer
+- [x] **Validation panel** — `validation-panel.tsx` expandable results for links, images, accessibility, spam score, Gmail clipping
+
+### Export & Transformers
+- [x] **Transformer panel** — `transformer-panel.tsx` toggle CSS inline/minify/clean CSS/UTM params with file size display
+- [x] **Export menu** — `export-menu.tsx` copy HTML, download HTML, download ZIP
+
+### NPM Packages Added
+- `codemirror`, `@codemirror/lang-html`, `@codemirror/state`, `@codemirror/view`
+- `juice`, `html-minifier-terser`, `clean-css`, `nodemailer`, `jszip`
+- `@types/nodemailer`, `@types/clean-css`, `@types/html-minifier-terser`
+
+### Remaining: Run Database Migration
+Run `supabase/migration-drafts.sql` in the Supabase SQL Editor to create the email_drafts, email_snippets, and global_styles tables.
+
+---
+
 ## Key Files Reference
 
 | Area | Files |
 |------|-------|
-| DB Migrations | `supabase/migration-orgs.sql`, `supabase/migration-analytics.sql` |
+| DB Migrations | `supabase/migration-orgs.sql`, `supabase/migration-analytics.sql`, `supabase/migration-drafts.sql` |
 | Auth | `src/lib/auth-utils.ts` |
 | Org Context | `src/app/(dashboard)/org-context.tsx`, `providers.tsx`, `layout.tsx` |
 | Org API | `src/app/api/orgs/route.ts`, `orgs/[orgId]/route.ts`, `orgs/[orgId]/members/`, `orgs/[orgId]/invitations/` |
@@ -110,3 +170,10 @@ Creates RPC functions: `analytics_top_tags`, `analytics_send_times`, `analytics_
 | Sidebar | `src/components/layout/sidebar.tsx` |
 | Analytics | `src/app/api/analytics/*/route.ts`, `src/components/analytics/*.tsx`, `src/app/(dashboard)/analytics/page.tsx` |
 | Gmail Sync | `src/lib/gmail/processor.ts` |
+| Drafts DB | `supabase/migration-drafts.sql` |
+| Drafts Types | `src/types/draft.ts`, `src/lib/validations/draft.ts` |
+| Drafts API | `src/app/api/drafts/`, `src/app/api/snippets/`, `src/app/api/styles/`, `src/app/api/templates/` |
+| Drafts Pages | `src/app/(dashboard)/drafts/page.tsx`, `drafts/[id]/page.tsx` |
+| Editor Components | `src/components/editor/*.tsx` |
+| Block Serializer | `src/lib/utils/block-serializer.ts` |
+| Global Styles | `src/app/(dashboard)/settings/styles/page.tsx` |
