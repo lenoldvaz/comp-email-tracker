@@ -6,23 +6,22 @@ import { getCompetitorDomainList } from "@/lib/competitors/detector"
 const BATCH_SIZE = 50
 const SYNC_WINDOW_DAYS = 7
 
-/**
- * Build a Gmail search query that only matches emails from competitor domains.
- * Uses a rolling window (default 7 days) so each run re-checks recent emails.
- * The processor's dedup check handles already-ingested messages.
- */
-async function buildCompetitorQuery(): Promise<string | null> {
+async function buildCompetitorQuery(since?: Date): Promise<string | null> {
   const domains = await getCompetitorDomainList()
   if (domains.length === 0) return null
   const fromClause = domains.map((d) => `from:${d}`).join(" OR ")
+  if (since) {
+    const dateStr = since.toISOString().slice(0, 10).replace(/-/g, "/")
+    return `(${fromClause}) after:${dateStr}`
+  }
   return `(${fromClause}) newer_than:${SYNC_WINDOW_DAYS}d`
 }
 
-export async function pollNewMessages(monitoredEmail: string, refreshToken: string) {
+export async function pollNewMessages(monitoredEmail: string, refreshToken: string, since?: Date) {
   const gmail = await getGmailClient(refreshToken)
   const supabase = createServiceClient()
 
-  const competitorQuery = await buildCompetitorQuery()
+  const competitorQuery = await buildCompetitorQuery(since)
   if (!competitorQuery) {
     console.log("No competitor domains configured — skipping Gmail sync")
     return []

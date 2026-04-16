@@ -7,7 +7,7 @@ function verifySecret(req: Request): boolean {
   return authHeader === `Bearer ${process.env.CRON_SECRET}`
 }
 
-async function runIngestion(trigger: "cron" | "manual") {
+async function runIngestion(trigger: "cron" | "manual", since?: Date) {
   const supabase = createServiceClient()
 
   // Get org_id from first sync state (same pattern as processor.ts)
@@ -33,7 +33,7 @@ async function runIngestion(trigger: "cron" | "manual") {
   })
 
   try {
-    const result = await processNewEmails()
+    const result = await processNewEmails(since)
     const finishedAt = new Date()
     const durationMs = finishedAt.getTime() - startedAt.getTime()
 
@@ -89,7 +89,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await runIngestion("cron")
+    const body = await req.json().catch(() => ({}))
+    const since = body.since ? new Date(body.since) : undefined
+    const result = await runIngestion("manual", since)
     return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"

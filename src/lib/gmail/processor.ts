@@ -10,7 +10,7 @@ interface ProcessResult {
   failed: number
 }
 
-export async function processNewEmails(): Promise<ProcessResult> {
+export async function processNewEmails(since?: Date): Promise<ProcessResult> {
   const supabase = createServiceClient()
 
   // Process for each org that has gmail configured
@@ -40,7 +40,7 @@ export async function processNewEmails(): Promise<ProcessResult> {
       .eq("org_id", syncState.org_id)
     const categoryNames = (orgCategories || []).map((c) => c.name)
 
-    const messages = await pollNewMessages(syncState.email, refreshToken)
+    const messages = await pollNewMessages(syncState.email, refreshToken, since)
 
     for (const message of messages) {
       try {
