@@ -53,11 +53,36 @@ Body: ${body}
 
 Existing categories: ${categoryList}
 
-Return JSON with exactly these fields:
+Choose tags from this established vocabulary (pick all that apply, max 5):
+- promotion: broad offer or incentive language
+- discount: specific dollar/percent savings ("$X off", "save $", "lowest price ever")
+- free visit: "free visit", "$0 visit", "no promo code required"
+- limited time: urgency language ("hurry", "final hours", "countdown", "ends soon", "deadline")
+- weight loss: weight loss treatments, GLP-1 medications, semaglutide, tirzepatide, Ozempic
+- referral program: "refer a friend", "invite friends", referral incentives
+- contest: prize draws, competitions, winner announcements
+- prizes: specific prizes mentioned (Apple Watch, gift cards, cash)
+- rewards: points, loyalty rewards, earning incentives
+- id upload: "upload your ID", photo ID, health card, passport, driver's license required
+- abandoned: re-engagement after inactivity ("still waiting", "don't forget", "pick up where you left off", "reminder")
+- wellness: general health/lifestyle framing, not tied to a specific treatment
+- longevity: mentions of longevity program or longevity testing
+- new year: New Year's messaging, "Day One", January seasonal
+- black friday: Black Friday or Cyber Monday seasonal
+- treatment: specific medical treatment being offered or explained
+- consultation: booking or completing a medical consultation
+- support: customer support, health coaching, ongoing care
+- community: social proof, testimonials, patient stories
+- prescription: prescription medication, refills, dosage
+- mobile app: app download or app feature promotion
+- personalized care: personalized/tailored treatment plans
+- medical weight loss: clinical/medical framing of weight loss specifically
+
+Only use a tag from outside this list if nothing fits. Return JSON:
 {
   "summary": "2-3 sentence summary of the email's purpose and key message",
   "category": "best matching category from the existing categories list, or 'Uncategorized' if none fit",
-  "tags": ["up to 5 relevant tags as lowercase words/phrases"],
+  "tags": ["tags chosen from vocabulary above, max 5"],
   "sentiment": "positive|neutral|negative"
 }`,
         },
