@@ -211,11 +211,13 @@ CREATE POLICY "Authenticated users can insert ingestion_logs"
 -- 8. Gmail Sync State
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS gmail_sync_state (
-  id           text PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  email        text UNIQUE NOT NULL,
-  history_id   text,
-  last_sync_at timestamptz,
-  updated_at   timestamptz NOT NULL DEFAULT now()
+  id            text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  email         text UNIQUE NOT NULL,
+  org_id        text REFERENCES organizations(id) ON DELETE CASCADE,
+  history_id    text,
+  refresh_token text,
+  last_sync_at  timestamptz,
+  updated_at    timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE gmail_sync_state ENABLE ROW LEVEL SECURITY;
@@ -231,6 +233,10 @@ CREATE POLICY "Authenticated users can update gmail_sync_state"
 
 CREATE POLICY "Authenticated users can delete gmail_sync_state"
   ON gmail_sync_state FOR DELETE TO authenticated USING (true);
+
+-- Add columns to gmail_sync_state if they don't exist (for existing deployments)
+ALTER TABLE gmail_sync_state ADD COLUMN IF NOT EXISTS refresh_token text;
+ALTER TABLE gmail_sync_state ADD COLUMN IF NOT EXISTS org_id text REFERENCES organizations(id) ON DELETE CASCADE;
 
 -- ---------------------------------------------------------------------------
 -- 9. Full-Text Search on emails

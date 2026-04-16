@@ -15,7 +15,7 @@ export async function GET() {
     .single()
 
   return NextResponse.json({
-    connected: !!syncState && !!process.env.GMAIL_REFRESH_TOKEN,
+    connected: !!syncState && !!(syncState?.refresh_token || process.env.GMAIL_REFRESH_TOKEN),
     email: syncState?.email || null,
     lastSyncAt: syncState?.last_sync_at || null,
     historyId: syncState?.history_id || null,

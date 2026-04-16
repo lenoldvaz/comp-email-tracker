@@ -27,8 +27,8 @@ export async function processNewEmails(): Promise<ProcessResult> {
   let totalFailed = 0
 
   for (const syncState of syncStates) {
-    // Get refresh token from environment (stored securely)
-    const refreshToken = process.env.GMAIL_REFRESH_TOKEN
+    // Get refresh token from DB or environment
+    const refreshToken = syncState.refresh_token || process.env.GMAIL_REFRESH_TOKEN
     if (!refreshToken) {
       continue
     }
