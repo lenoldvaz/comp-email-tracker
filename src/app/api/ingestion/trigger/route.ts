@@ -3,12 +3,15 @@ import { requireAdmin, getActiveOrg } from "@/lib/auth-utils"
 import { processNewEmails } from "@/lib/gmail/processor"
 import { createServiceClient } from "@/lib/supabase/server"
 
-export async function POST() {
+export async function POST(req: Request) {
   const { error, user } = await requireAdmin()
   if (error) return error
 
   const { org } = await getActiveOrg(user!.id)
   const orgId = org?.orgId
+
+  const body = await req.json().catch(() => ({}))
+  const since = body.since ? new Date(body.since) : undefined
 
   const supabase = createServiceClient()
 
@@ -27,7 +30,7 @@ export async function POST() {
   }
 
   try {
-    const result = await processNewEmails()
+    const result = await processNewEmails(since)
 
     if (runId && orgId) {
       const finishedAt = new Date()

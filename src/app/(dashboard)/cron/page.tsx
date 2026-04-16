@@ -105,11 +105,28 @@ function CronMonitorContent() {
     enabled: !!orgId,
   })
 
+  const [backfillDate, setBackfillDate] = useState("2026-02-01")
+
   // Run now mutation
   const runNow = useMutation({
     mutationFn: () =>
       fetch("/api/ingestion/trigger", { method: "POST" }).then((r) => {
         if (!r.ok) throw new Error("Trigger failed")
+        return r.json()
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cron-runs"] })
+    },
+  })
+
+  const backfill = useMutation({
+    mutationFn: () =>
+      fetch("/api/ingestion/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ since: backfillDate }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Backfill failed")
         return r.json()
       }),
     onSuccess: () => {
@@ -126,14 +143,32 @@ function CronMonitorContent() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Cron Monitor</h1>
-        <button
-          onClick={() => runNow.mutate()}
-          disabled={runNow.isPending}
-          className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          <Play className="h-4 w-4" />
-          {runNow.isPending ? "Running..." : "Run Now"}
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-md border bg-white px-2 py-1">
+            <span className="text-xs text-gray-500">Backfill from</span>
+            <input
+              type="date"
+              value={backfillDate}
+              onChange={(e) => setBackfillDate(e.target.value)}
+              className="text-sm outline-none"
+            />
+            <button
+              onClick={() => backfill.mutate()}
+              disabled={backfill.isPending || !backfillDate}
+              className="ml-1 rounded bg-purple-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+            >
+              {backfill.isPending ? "Running..." : "Run"}
+            </button>
+          </div>
+          <button
+            onClick={() => runNow.mutate()}
+            disabled={runNow.isPending}
+            className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            <Play className="h-4 w-4" />
+            {runNow.isPending ? "Running..." : "Run Now"}
+          </button>
+        </div>
       </div>
 
       {/* Health Overview Cards */}
